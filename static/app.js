@@ -1,6 +1,7 @@
 const $ = (id) => document.getElementById(id);
 let photos = [], visible = [], limit = 60, current = 0, csrf = '', admin = false, loading = false;
 let setupNeeded = false;
+let hasMore = false, loadFrame = 0;
 let hiddenOnly = false;
 let aliases = {}, titles = {};
 const selected = new Set();
@@ -23,7 +24,9 @@ function readRoute() {
     try { route = { view: 'album', album: decodeURIComponent(hash.slice(6)) || null }; }
     catch { location.hash = 'albums'; }
   }
+  window.scrollTo({ top: 0, behavior: 'instant' });
   $('search').value = ''; selected.clear(); limit = 60; render();
+  window.scrollTo({ top: 0, behavior: 'instant' });
 }
 function render() {
   const q = $('search').value.trim().toLowerCase();
@@ -89,7 +92,8 @@ function render() {
   if (!loading && !q && filteringHidden) $('empty-title').textContent = '非表示の画像はありません';
   $('empty-text').textContent = filteringHidden && !q ? '「すべての画像に戻す」で絞り込みを解除できます。' : q ? '別のMCIDやファイル名で検索してみてください。' : '写真が追加されると、ここに表示されます。';
   $('empty-back').hidden = !q && route.view === 'photos';
-  $('more').hidden = items.length <= limit;
+  hasMore = items.length > limit;
+  queueAutoLoad();
   updateMergeOptions();
   updateSelection();
 }
@@ -183,29 +187,39 @@ function updateMergeOptions() {
   const source = $('merge-source');
   const previous = source.value;
   const names = [...new Set(photos.map(p => p.album).filter(Boolean))].sort((a, b) => a.localeCompare(b));
-  source.replaceChildren(); $('album-names').replaceChildren();
+  const target = $('merge-target'), previousTarget = target.value;
+  source.replaceChildren(); target.replaceChildren();
+  const targetPlaceholder = text('option', 'アルバムを選択'); targetPlaceholder.value = ''; target.append(targetPlaceholder);
   const placeholder = text('option', 'アルバムを選択'); placeholder.value = ''; source.append(placeholder);
   for (const name of names) {
     const option = text('option', name); option.value = name; source.append(option);
-    const suggestion = document.createElement('option'); suggestion.value = name; $('album-names').append(suggestion);
+    const suggestion = document.createElement('option'); suggestion.value = name; target.append(suggestion);
   }
   source.value = names.includes(previous) ? previous : '';
+  const newTarget = text('option', '新しいMCIDを入力…'); newTarget.value = '!new'; target.append(newTarget);
+  target.value = names.includes(previousTarget) || previousTarget === '!new' ? previousTarget : '';
+  updateMergeTarget();
   const editor = $('edit-album'), previousAlbum = editor.value;
   editor.replaceChildren(); const first = text('option', 'アルバムを選択'); first.value = ''; editor.append(first);
   for (const name of names) { const option = text('option', `${albumName(name)} (${name})`); option.value = name; editor.append(option); }
   editor.value = names.includes(previousAlbum) ? previousAlbum : '';
 }
+function updateMergeTarget() {
+  const isNew = $('merge-target').value === '!new';
+  $('merge-new-label').hidden = !isNew; $('merge-new-target').disabled = !isNew; $('merge-new-target').required = isNew;
+}
+$('merge-target').onchange = updateMergeTarget;
 $('merge-form').onsubmit = async event => {
   event.preventDefault();
   const source = $('merge-source').value;
-  const target = $('merge-target').value.trim();
+  const target = $('merge-target').value === '!new' ? $('merge-new-target').value.trim() : $('merge-target').value;
   const count = photos.filter(p => p.album === source).length;
   if (!source || !target) return;
   if (!confirm(`「${source}」の${count}枚を「${target}」へ統合します。旧IDで追加する画像も統合先に入ります。この操作は画面から元に戻せません。続けますか？`)) return;
   const button = event.target.querySelector('button'); button.disabled = true;
   try {
     const result = await api('/api/albums/merge', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source, target }) });
-    await load(); $('merge-target').value = '';
+    await load(); $('merge-target').value = ''; $('merge-new-target').value = ''; updateMergeTarget();
     $('merge-status').textContent = `${result.moved}枚を「${result.target}」へ統合しました。一般公開の一覧への反映には最大60秒かかります。`;
   } catch (error) { $('merge-status').textContent = error.message; }
   finally { button.disabled = false; }
@@ -226,7 +240,6 @@ $('next').onclick = () => { if (current < visible.length - 1) openPhoto(current 
 $('viewer').addEventListener('click', event => { if (event.target === $('viewer')) $('viewer').close(); });
 $('search').oninput = () => { limit = 60; render(); };
 $('sort').onchange = () => { limit = 60; render(); };
-$('more').onclick = () => { limit += 60; render(); };
 window.addEventListener('hashchange', readRoute);
 window.addEventListener('keydown', event => {
   if ($('viewer').open) { if (event.key === 'ArrowLeft') $('previous').click(); if (event.key === 'ArrowRight') $('next').click(); }
@@ -299,13 +312,18 @@ $('icon-file').onchange = async event => {
   finally { event.target.value = ''; event.target.disabled = false; }
 };
 $('brand').onclick = event => { event.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); };
-// Keep an accessible manual fallback while automatically loading near the bottom.
-if ('IntersectionObserver' in window) {
-  const observer = new IntersectionObserver(entries => {
-    if (entries.some(entry => entry.isIntersecting) && !loading && !$('more').hidden) { limit += 60; render(); }
-  }, { rootMargin: '500px' });
-  observer.observe($('load-sentinel'));
+// Check again after each render: a short page may need several batches to fill the viewport.
+function queueAutoLoad() {
+  if (loadFrame) return;
+  loadFrame = requestAnimationFrame(() => {
+    loadFrame = 0;
+    if (!loading && hasMore && $('load-sentinel').getBoundingClientRect().top <= innerHeight + 500) {
+      limit += 60; render();
+    }
+  });
 }
+window.addEventListener('scroll', queueAutoLoad, { passive: true });
+window.addEventListener('resize', queueAutoLoad);
 let zoom = 1, panX = 0, panY = 0, gesture = null;
 const pointers = new Map();
 function applyZoom() {

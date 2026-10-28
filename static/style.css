@@ -8,3 +8,5 @@
 .brand{justify-content:center}
 
 .visibility-filter{margin-top:18px}#hidden-only[aria-pressed="true"]{background:var(--green);color:white;border-color:var(--green)}
+
+#grid{overflow-anchor:none}
