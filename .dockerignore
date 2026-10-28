@@ -1,0 +1,9 @@
+**
+!Dockerfile
+!requirements.lock
+!app.py
+!bootstrap.py
+!manage.py
+!docker-entrypoint.sh
+!static/
+!static/**

@@ -1,0 +1,6 @@
+# Developer-only override; production uses the published GHCR image.
+services:
+  web:
+    image: img-site-dev
+    build: .
+    pull_policy: build
