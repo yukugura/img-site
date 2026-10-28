@@ -15,7 +15,7 @@
 <div class="page">
 <main>
 <section class="heading"><div><h1 id="title">すべての写真</h1></div><span class="count" id="count">—</span></section>
-<section class="toolbar"><label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="MCID・ファイル名で検索" aria-label="MCID・ファイル名で検索"><kbd>/</kbd></label><select id="sort" aria-label="並び順"><option value="new">追加が新しい順</option><option value="old">追加が古い順</option><option value="name" selected>名前順</option></select></section>
+<section class="toolbar"><label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="MCID・ファイル名で検索" aria-label="MCID・ファイル名で検索"><kbd>/</kbd></label><select id="sort" aria-label="並び順"><option value="new" selected>追加が新しい順</option><option value="old">追加が古い順</option><option value="name">名前順</option></select></section>
 <section id="admin-panel" hidden>
 <div class="admin-box"><div><h2>写真を追加</h2><p>PNG / JPEG / WebP・1枚20MBまで。ファイル名からアルバムを自動作成します。</p></div><label class="primary upload-label">画像を選択<input type="file" id="files" accept="image/png,image/jpeg,image/webp" multiple hidden></label><button id="logout" class="secondary">ログアウト</button></div>
 <details class="album-management"><summary>アルバムを統合する</summary><p>旧IDのアルバムを現在のIDへまとめます。今後のアップロードも統合先へ振り分けます。</p><form id="merge-form"><label>統合元（旧ID）<select id="merge-source" required></select></label><span class="merge-arrow" aria-hidden="true">→</span><label>統合先（現在のID）<select id="merge-target" required></select></label><label id="merge-new-label" hidden>新しいMCID<input id="merge-new-target" pattern="[A-Za-z0-9_\-]{1,64}" maxlength="64" placeholder="新しいMCID" disabled></label><button class="secondary" type="submit">統合する</button></form><p id="merge-status" role="status"></p></details>

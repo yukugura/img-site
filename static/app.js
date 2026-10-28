@@ -2,6 +2,7 @@ const $ = (id) => document.getElementById(id);
 let photos = [], visible = [], limit = 60, current = 0, csrf = '', admin = false, loading = false;
 let setupNeeded = false;
 let hasMore = false, loadFrame = 0;
+const sortByView = { photos: 'new', albums: 'name', album: 'name' };
 let hiddenOnly = false;
 let aliases = {}, titles = {};
 const selected = new Set();
@@ -24,6 +25,7 @@ function readRoute() {
     try { route = { view: 'album', album: decodeURIComponent(hash.slice(6)) || null }; }
     catch { location.hash = 'albums'; }
   }
+  $('sort').value = sortByView[route.view];
   window.scrollTo({ top: 0, behavior: 'instant' });
   $('search').value = ''; selected.clear(); limit = 60; render();
   window.scrollTo({ top: 0, behavior: 'instant' });
@@ -239,7 +241,7 @@ $('previous').onclick = () => { if (current > 0) openPhoto(current - 1); };
 $('next').onclick = () => { if (current < visible.length - 1) openPhoto(current + 1); };
 $('viewer').addEventListener('click', event => { if (event.target === $('viewer')) $('viewer').close(); });
 $('search').oninput = () => { limit = 60; render(); };
-$('sort').onchange = () => { limit = 60; render(); };
+$('sort').onchange = () => { sortByView[route.view] = $('sort').value; selected.clear(); limit = 60; render(); };
 window.addEventListener('hashchange', readRoute);
 window.addEventListener('keydown', event => {
   if ($('viewer').open) { if (event.key === 'ArrowLeft') $('previous').click(); if (event.key === 'ArrowRight') $('next').click(); }
